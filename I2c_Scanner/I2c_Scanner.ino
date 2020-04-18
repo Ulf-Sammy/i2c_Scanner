@@ -6,6 +6,7 @@
 //
 #include <Wire.h> 
 #include <LiquidCrystal.h>
+
 #define KEYPAD_KEY_RIGHT  0
 #define KEYPAD_KEY_UP     1
 #define KEYPAD_KEY_DOWN   2
@@ -67,6 +68,11 @@ void setup()
     Serial.println("showing Data...");
     Serial.print("Read Melder ...");
     Serial.println(AnzahlGruppe);
+    LCD.setCursor(0, 1);
+    LCD.print("Read Melder = ");
+    LCD.setCursor(14, 1);
+    LCD.print(AnzahlGruppe);
+
     Serial.println("=====================================================");
    
 
