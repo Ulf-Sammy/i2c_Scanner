@@ -4,9 +4,31 @@
 // 
 //
 //
-#include <Wire.h>
+#include <Wire.h> 
+#include <LiquidCrystal.h>
+#define KEYPAD_KEY_RIGHT  0
+#define KEYPAD_KEY_UP     1
+#define KEYPAD_KEY_DOWN   2
+#define KEYPAD_KEY_LEFT   3
+#define KEYPAD_KEY_SELECT 4
+#define KEYPAD_KEY_NONE   5
+
+#define KEYPAD_KEY_RIGHT_ADC_LOW   0
+#define KEYPAD_KEY_RIGHT_ADC_HIGH  20
+#define KEYPAD_KEY_UP_ADC_LOW      120
+#define KEYPAD_KEY_UP_ADC_HIGH     140
+#define KEYPAD_KEY_DOWN_ADC_LOW    290
+#define KEYPAD_KEY_DOWN_ADC_HIGH   339
+#define KEYPAD_KEY_LEFT_ADC_LOW    450
+#define KEYPAD_KEY_LEFT_ADC_HIGH   520
+#define KEYPAD_KEY_SELECT_ADC_LOW  700
+#define KEYPAD_KEY_SELECT_ADC_HIGH 780
+#define KEYPAD_KEY_NONE_ADC_LOW    1000
+#define KEYPAD_KEY_NONE_ADC_HIGH   102
+
+#define PIN_KEY A0
+#define PIN_BACKLIGHT 10
 #define MaxGruppe 8
-#define MaxMelder MaxGruppe*8
 
 struct Melder_Info
 {
@@ -17,20 +39,34 @@ struct Melder_Info
 
 byte AnzahlGruppe;       // Anzahl MelderGruppe
 bool AdressenI2C[127];
-byte GruppeAddr[MaxGruppe];
+byte GruppeAddr_G[MaxGruppe];
+byte GruppeAddr_T[MaxGruppe];
+
+
 volatile Melder_Info GruppeData[MaxGruppe];
+LiquidCrystal LCD(8, 9, 4, 5, 6, 7);
 
 
 void setup()
 {
+    pinMode(PIN_BACKLIGHT, INPUT);
+ //   digitalWrite(PIN_BACKLIGHT, 0);
     Wire.begin();
+    LCD.begin(16, 2);
+    LCD.clear();
 
+    LCD.setCursor(0, 0);
+    LCD.print("I2C Scanner V1.0");
     Serial.begin(115200);
-    while (!Serial);            
     Serial.println("\nI2C Scanner");
-    Serial.println("Scanning ");
-    InitMelder();
+    Serial.print("max Melder ...");
+    Serial.println(MaxGruppe);
+    LCD.setCursor(0, 1);
+    LCD.print("Scanning ....");
+//    InitMelder();
     Serial.println("showing Data...");
+    Serial.print("Read Melder ...");
+    Serial.println(AnzahlGruppe);
     Serial.println("=====================================================");
    
 
@@ -51,6 +87,9 @@ void setup()
     }
     Serial.println("           |");
     Serial.println("=====================================================");
+    Serial.print("Read Melder ...");
+    Serial.println(AnzahlGruppe);
+
 }
 
 
@@ -70,10 +109,9 @@ void loop()
 void ReadMelder()
 {
     byte MelderData;
-    int MelderNr;
     for (int m = 0; m < AnzahlGruppe; m++)
     {
-        Wire.requestFrom((int)GruppeAddr[m], (int)1);
+        Wire.requestFrom((int)GruppeAddr_G[m], (int)1);
         if (Wire.available())
         {
             MelderData = (0xFF ^ Wire.read());
@@ -99,7 +137,8 @@ void InitMelder()
         error = Wire.endTransmission();
         if (error == 0)
         {
-            GruppeAddr[AnzahlGruppe] = address;
+            if (address >= 0x20)             GruppeAddr_T[AnzahlGruppe] = address;
+            if (address >= 0x38)             GruppeAddr_G[AnzahlGruppe] = address;
             AdressenI2C[address] = true;
             AnzahlGruppe++;
         }
@@ -114,7 +153,9 @@ void InitMelder()
     Serial.println(AnzahlGruppe);
     for (int m = 0; m < AnzahlGruppe; m++)
     {
-        Wire.requestFrom((int)GruppeAddr[m], (int)1);
+        Wire.requestFrom((int)GruppeAddr_G[m], (int)1);
+        Serial.print(" read Adr.: ");
+        Serial.println(GruppeAddr_G[m], HEX);
         if (Wire.available())
         {
             GruppeData[m].Data = (0xFF ^ Wire.read());
@@ -122,6 +163,8 @@ void InitMelder()
             GruppeData[m].Update = false;
         }
     }
+    Serial.print("Read Melder ...");
+    Serial.println(AnzahlGruppe);
 }
 
 
@@ -143,7 +186,7 @@ void printbitMuster(byte m)
             lastByte = GruppeData[m].Data;
             lastrun = true;
             PrintByteString(GruppeData[m].Data, GruppeData[m].oldData);
-            Serial.print(" = 0x"); Serial.println(GruppeAddr[m], HEX);
+            Serial.print(" = 0x"); Serial.println(GruppeAddr_G[m], HEX);
             GruppeData[m].oldData = GruppeData[m].Data;
         }
     }
@@ -171,4 +214,16 @@ void PrintByteString(byte A, byte B)
         }
         Serial.print(" |");
     }
+}
+byte read_key(void)
+{
+    uint16_t adcval = analogRead(PIN_KEY);
+
+    if ((adcval >= KEYPAD_KEY_RIGHT_ADC_LOW) && (adcval <= KEYPAD_KEY_RIGHT_ADC_HIGH))   return KEYPAD_KEY_RIGHT;
+    if ((adcval >= KEYPAD_KEY_UP_ADC_LOW) && (adcval <= KEYPAD_KEY_UP_ADC_HIGH))         return KEYPAD_KEY_UP;
+    if ((adcval >= KEYPAD_KEY_DOWN_ADC_LOW) && (adcval <= KEYPAD_KEY_DOWN_ADC_HIGH))     return KEYPAD_KEY_DOWN;
+    if ((adcval >= KEYPAD_KEY_LEFT_ADC_LOW) && (adcval <= KEYPAD_KEY_LEFT_ADC_HIGH))     return KEYPAD_KEY_LEFT;
+    if ((adcval >= KEYPAD_KEY_SELECT_ADC_LOW) && (adcval <= KEYPAD_KEY_SELECT_ADC_HIGH)) return KEYPAD_KEY_SELECT;
+    if ((adcval >= KEYPAD_KEY_NONE_ADC_LOW) && (adcval <= KEYPAD_KEY_NONE_ADC_HIGH))     return KEYPAD_KEY_NONE;
+    return KEYPAD_KEY_NONE;
 }
