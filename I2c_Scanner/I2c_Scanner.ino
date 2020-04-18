@@ -38,7 +38,8 @@ struct Melder_Info
     byte oldData;
 };
 
-byte AnzahlGruppe;       // Anzahl MelderGruppe
+byte AnzahlGruppeG;       // Anzahl MelderGruppe
+byte AnzahlGruppeT;       // Anzahl MelderGruppe
 bool AdressenI2C[127];
 byte GruppeAddr_G[MaxGruppe];
 byte GruppeAddr_T[MaxGruppe];
@@ -57,21 +58,15 @@ void setup()
     LCD.clear();
 
     LCD.setCursor(0, 0);
-    LCD.print("I2C Scanner V1.0");
+    LCD.print("I2C Scanner V2.0");
     Serial.begin(115200);
-    Serial.println("\nI2C Scanner");
-    Serial.print("max Melder ...");
-    Serial.println(MaxGruppe);
+    Serial.println("\nI2C Scanner V2.0");
+    Serial.println("Scanning ....");
     LCD.setCursor(0, 1);
     LCD.print("Scanning ....");
-//    InitMelder();
+    InitMelder();
+    Show_LCD_MelderG();
     Serial.println("showing Data...");
-    Serial.print("Read Melder ...");
-    Serial.println(AnzahlGruppe);
-    LCD.setCursor(0, 1);
-    LCD.print("Read Melder = ");
-    LCD.setCursor(14, 1);
-    LCD.print(AnzahlGruppe);
 
     Serial.println("=====================================================");
    
@@ -93,16 +88,13 @@ void setup()
     }
     Serial.println("           |");
     Serial.println("=====================================================");
-    Serial.print("Read Melder ...");
-    Serial.println(AnzahlGruppe);
-
 }
 
 
 void loop()
 {
     ReadMelder();
-    for (int m = 0; m < AnzahlGruppe; m++)
+    for (int m = 0; m < AnzahlGruppeG; m++)
     {
         if (GruppeData[m].Update)
         {
@@ -115,7 +107,7 @@ void loop()
 void ReadMelder()
 {
     byte MelderData;
-    for (int m = 0; m < AnzahlGruppe; m++)
+    for (int m = 0; m < AnzahlGruppeG; m++)
     {
         Wire.requestFrom((int)GruppeAddr_G[m], (int)1);
         if (Wire.available())
@@ -134,8 +126,10 @@ void InitMelder()
 {
     byte error;
   
-    AnzahlGruppe = 0;
+    AnzahlGruppeG = 0;
+    AnzahlGruppeT = 0;
     AdressenI2C[0] = false;
+
     Wire.begin();
     for (byte address = 1; address < 127; address++)
     {
@@ -143,10 +137,18 @@ void InitMelder()
         error = Wire.endTransmission();
         if (error == 0)
         {
-            if (address >= 0x20)             GruppeAddr_T[AnzahlGruppe] = address;
-            if (address >= 0x38)             GruppeAddr_G[AnzahlGruppe] = address;
+            if ((address >= 0x20) && (address <= 0x27))
+            {
+                GruppeAddr_T[AnzahlGruppeT] = address;
+                AnzahlGruppeT++;
+            }
+            if ((address >= 0x38) && (address <= 0x3F))
+            {
+                GruppeAddr_G[AnzahlGruppeG] = address;
+                AnzahlGruppeG++;
+                if(AnzahlGruppeG == 4)     LCD.setCursor(0, 1);
+            }
             AdressenI2C[address] = true;
-            AnzahlGruppe++;
         }
         else
         {
@@ -156,12 +158,10 @@ void InitMelder()
     }
     Serial.println(" ");
     Serial.print("Found Device = ");
-    Serial.println(AnzahlGruppe);
-    for (int m = 0; m < AnzahlGruppe; m++)
+    Serial.println(AnzahlGruppeG);
+    for (int m = 0; m < AnzahlGruppeG; m++)
     {
         Wire.requestFrom((int)GruppeAddr_G[m], (int)1);
-        Serial.print(" read Adr.: ");
-        Serial.println(GruppeAddr_G[m], HEX);
         if (Wire.available())
         {
             GruppeData[m].Data = (0xFF ^ Wire.read());
@@ -170,9 +170,27 @@ void InitMelder()
         }
     }
     Serial.print("Read Melder ...");
-    Serial.println(AnzahlGruppe);
+    Serial.println(AnzahlGruppeG);
 }
 
+void Show_LCD_MelderG()
+{
+    byte V;
+    LCD.clear();
+    LCD.setCursor(0, 0);
+    LCD.print("Read Melder = ");
+    LCD.setCursor(14, 0);
+    LCD.print(AnzahlGruppeG);
+    LCD.setCursor(0, 1);
+    LCD.print("x3:");
+    for (int m = 0; m < AnzahlGruppeG; m++)
+    {
+        V = GruppeAddr_G[m] & 0x0F;
+        LCD.print(" ");
+        LCD.print(V,HEX);
+    }
+
+}
 
 void printbitMuster(byte m)
 {
